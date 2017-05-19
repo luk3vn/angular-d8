@@ -1,7 +1,12 @@
 {
   "name": "angular-d8",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "license": "MIT",
+  "homepage": "https://github.com/lonalore/angular-d8",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lonalore/angular-d8.git"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
