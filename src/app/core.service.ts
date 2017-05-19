@@ -7,8 +7,7 @@ export let BASE_PATH = new InjectionToken<string>('base.path');
 export class CoreService {
 
   constructor(@Inject(SITE_PATH) private sitePath: string,
-              @Inject(BASE_PATH) private basePath: string
-  ) {
+              @Inject(BASE_PATH) private basePath: string) {
   }
 
   restPath() {
