@@ -1,28 +1,114 @@
-# AngularD8
+# angular-d8
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 1.0.3.
+An Angular 4 project for Drupal 8 RESTful Web Services.
 
-## Development server
+> This plugin is under development!!!
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+## Installing
 
-## Code scaffolding
+Install `angular-d8` from `npm`
+```bash
+npm install --save lonalore/angular-d8
+```
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|module`.
+## Loading
 
-## Build
+### Angular-CLI
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `-prod` flag for a production build.
+No need to set up anything, just import it in your code.
 
-## Running unit tests
+## Services
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+There are several services available:
+- `CoreService` - contains shared functions
+- `ModuleService` - contains module-specific functions
+- `RestService` - contains a set of functions, which developers can perform requests and receive responses via HTTP protocol such as GET and POST
 
-## Running end-to-end tests
+## Usage
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
-Before running the tests make sure you are serving the app via `ng serve`.
+### In your `app.module.ts` file
 
-## Further help
+```TypeScript
+...
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+import {CoreService, ModuleService, RestService} from 'angular-d8';
+import {SITE_PATH, BASE_PATH} from 'angular-d8';
+
+@NgModule({
+  declarations: [
+    ...
+  ],
+  imports: [
+    ...
+  ],
+  providers: [
+    ...
+    {provide: SITE_PATH, useValue: 'http://your-drupal-website.com'},
+    {provide: BASE_PATH, useValue: '/'},
+    CoreService,
+    ModuleService,
+    RestService,
+    ...
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule {
+}
+```
+
+### Then, for example in your authentication service 
+
+```TypeScript
+import {Injectable} from '@angular/core';
+
+import {RestService} from 'angular-d8';
+
+@Injectable()
+export class AuthenticationService {
+
+  constructor(private restService: RestService) {
+  }
+
+  login(username: string, password: string) {
+    return this.restService.userLogin(username, password).subscribe(
+      data => {
+        ...
+      },
+      error => {
+        ...
+    });
+  }
+
+}
+```
+
+**with custom mapping function for Observer**
+
+```TypeScript
+import {Injectable} from '@angular/core';
+import {Observable} from 'rxjs/Rx';
+
+// Import RxJs required methods
+import 'rxjs/add/operator/map';
+import 'rxjs/add/operator/catch';
+
+import {RestService} from 'angular-d8';
+
+@Injectable()
+export class AuthenticationService {
+
+  constructor(private restService: RestService) {
+  }
+
+  login(username: string, password: string) {
+    return this.restService.requestUserLogin(username, password)
+      .map((response) => {
+        if (response.status === 200) {
+          ...
+        }
+      })
+      .catch((error: any) => Observable.throw(error.json().message || 'Server error'));
+  }
+
+}
+```
