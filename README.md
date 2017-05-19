@@ -17,13 +17,6 @@ npm install --save lonalore/angular-d8
 
 No need to set up anything, just import it in your code.
 
-## Services
-
-There are several services available:
-- `CoreService` - contains shared functions
-- `ModuleService` - contains module-specific functions
-- `RestService` - contains a set of functions, which developers can perform requests and receive responses via HTTP protocol such as GET and POST
-
 ## Usage
 
 ### In your `app.module.ts` file
@@ -31,8 +24,7 @@ There are several services available:
 ```TypeScript
 ...
 
-import {CoreService, ModuleService, RestService} from 'angular-d8';
-import {SITE_PATH, BASE_PATH} from 'angular-d8';
+import {DrupalService, SITE_PATH, BASE_PATH} from 'angular-d8';
 
 @NgModule({
   declarations: [
@@ -45,9 +37,7 @@ import {SITE_PATH, BASE_PATH} from 'angular-d8';
     ...
     {provide: SITE_PATH, useValue: 'http://your-drupal-website.com'},
     {provide: BASE_PATH, useValue: '/'},
-    CoreService,
-    ModuleService,
-    RestService,
+    DrupalService,
     ...
   ],
   bootstrap: [AppComponent]
@@ -61,16 +51,16 @@ export class AppModule {
 ```TypeScript
 import {Injectable} from '@angular/core';
 
-import {RestService} from 'angular-d8';
+import {DrupalService} from 'angular-d8';
 
 @Injectable()
 export class AuthenticationService {
 
-  constructor(private restService: RestService) {
+  constructor(private drupal: DrupalService) {
   }
 
   login(username: string, password: string) {
-    return this.restService.userLogin(username, password).subscribe(
+    return this.drupal.userLogin(username, password).subscribe(
       data => {
         ...
       },
@@ -92,16 +82,16 @@ import {Observable} from 'rxjs/Rx';
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/catch';
 
-import {RestService} from 'angular-d8';
+import {DrupalService} from 'angular-d8';
 
 @Injectable()
 export class AuthenticationService {
 
-  constructor(private restService: RestService) {
+  constructor(private drupal: DrupalService) {
   }
 
   login(username: string, password: string) {
-    return this.restService.requestUserLogin(username, password)
+    return this.drupal.requestUserLogin(username, password)
       .map((response) => {
         if (response.status === 200) {
           ...
