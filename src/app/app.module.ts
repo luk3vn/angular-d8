@@ -4,11 +4,7 @@ import {FormsModule} from '@angular/forms';
 import {HttpModule} from '@angular/http';
 
 import {AppComponent} from './app.component';
-import {CoreService, SITE_PATH, BASE_PATH} from './core.service';
-import {ModuleService} from './module.service';
-import {RestService} from './rest.service';
-
-import {DrupalService} from './drupal.service';
+import {DrupalService, SITE_PATH, BASE_PATH} from './drupal.service';
 
 @NgModule({
   declarations: [
@@ -22,9 +18,6 @@ import {DrupalService} from './drupal.service';
   providers: [
     {provide: SITE_PATH, useValue: 'http://example.com'},
     {provide: BASE_PATH, useValue: '/'},
-    CoreService,
-    ModuleService,
-    RestService,
     DrupalService
   ],
   bootstrap: [AppComponent]
