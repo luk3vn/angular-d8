@@ -13,13 +13,13 @@ npm install --save lonalore/angular-d8
 
 ## Loading
 
-### Angular-CLI
+#### Angular-CLI
 
 No need to set up anything, just import it in your code.
 
 ## Usage
 
-### In your `app.module.ts` file
+#### 1, In your `app.module.ts` file
 
 ```TypeScript
 ...
@@ -46,7 +46,7 @@ export class AppModule {
 }
 ```
 
-### Then, for example in your authentication service 
+#### 2, Then, for example in your authentication service 
 
 ```TypeScript
 import {Injectable} from '@angular/core';
@@ -72,7 +72,7 @@ export class AuthenticationService {
 }
 ```
 
-**with custom mapping function for Observer**
+##### with custom mapping function for Observer
 
 ```TypeScript
 import {Injectable} from '@angular/core';
