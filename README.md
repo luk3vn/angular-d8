@@ -1,8 +1,15 @@
-# angular-d8
+angular-d8
+==========
 
 An Angular 4 project for Drupal 8 RESTful Web Services.
 
 > This plugin is under development!!!
+
+## Features
+- Connect
+- User - Login / Logout / Load
+- Node - Create, Retrieve, Update, Delete
+- Views Integration
 
 ## Installing
 
