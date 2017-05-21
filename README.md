@@ -98,7 +98,7 @@ export class AuthenticationService {
   }
 
   login(username: string, password: string) {
-    return this.drupal.requestUserLogin(username, password)
+    return this.drupal.userLogin(username, password, false)
       .map((response) => {
         if (response.status === 200) {
           ...

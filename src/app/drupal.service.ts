@@ -6,6 +6,8 @@ import {Observable} from 'rxjs/Rx';
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/catch';
 
+import {CoreService} from './core.service';
+
 export let SITE_PATH = new InjectionToken<string>('site.path');
 export let BASE_PATH = new InjectionToken<string>('base.path');
 
@@ -16,7 +18,8 @@ export class DrupalService {
 
   constructor(@Inject(SITE_PATH) private sitePath: string,
               @Inject(BASE_PATH) private basePath: string,
-              private http: Http) {
+              private http: Http,
+              private core: CoreService) {
   }
 
   restPath() {
@@ -27,23 +30,8 @@ export class DrupalService {
     return this.restPath().substr(this.restPath().indexOf('://') + 3).replace('localhost', '');
   }
 
-  isReady() {
-    try {
-      const ready = !this.isEmpty(this.sitePath);
-      if (!ready) {
-        console.log('sitePath not set');
-      }
-      return ready;
-    } catch (error) {
-      console.log('isReady - ' + error);
-    }
-  }
-
   isEmpty(value: any) {
-    if (value !== null && typeof value === 'object') {
-      return Object.keys(value).length === 0;
-    }
-    return (typeof value === 'undefined' || value === null || value === '');
+    return this.core.isEmpty(value);
   }
 
   /**
@@ -52,12 +40,7 @@ export class DrupalService {
    * @returns {boolean}
    */
   functionExists(name: string) {
-    try {
-      const func = eval('typeof ' + name);
-      return (func === 'function');
-    } catch (error) {
-      alert('functionExists - ' + error);
-    }
+    return this.core.functionExists(name);
   }
 
   /**
@@ -67,25 +50,7 @@ export class DrupalService {
    * @returns {boolean}
    */
   inArray(needle: any, haystack: any) {
-    try {
-      if (typeof haystack === 'undefined') {
-        return false;
-      }
-      if (typeof needle === 'string') {
-        return (haystack.indexOf(needle) > -1);
-      } else {
-        let found = false;
-        for (let i = 0; i < haystack.length; i++) {
-          if (haystack[i] === needle) {
-            found = true;
-            break;
-          }
-        }
-        return found;
-      }
-    } catch (error) {
-      console.log('inArray - ' + error);
-    }
+    return this.core.inArray(needle, haystack);
   }
 
   /**
@@ -94,7 +59,7 @@ export class DrupalService {
    * @returns {boolean}
    */
   isArray(obj: object) {
-    return Object.prototype.toString.call(obj) === '[object Array]';
+    return this.core.isArray(obj);
   }
 
   /**
@@ -103,10 +68,7 @@ export class DrupalService {
    * @returns {boolean}
    */
   isInt(n: any) {
-    if (typeof n === 'string') {
-      n = parseInt(n, 0);
-    }
-    return typeof n === 'number' && n % 1 === 0;
+    return this.core.isInt(n);
   }
 
   /**
@@ -115,7 +77,7 @@ export class DrupalService {
    * @returns {boolean}
    */
   isPromise(obj: object) {
-    return Promise.resolve(obj) === obj;
+    return this.core.isPromise(obj);
   }
 
   /**
@@ -124,13 +86,7 @@ export class DrupalService {
    * @returns {any}
    */
   shuffle(array: any) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const temp = array[i];
-      array[i] = array[j];
-      array[j] = temp;
-    }
-    return array;
+    return this.core.shuffle(array);
   }
 
   /**
@@ -138,8 +94,7 @@ export class DrupalService {
    * @returns {number}
    */
   time() {
-    const d: any = new Date();
-    return Math.floor(d / 1000);
+    return this.core.time();
   }
 
   /**
@@ -148,9 +103,7 @@ export class DrupalService {
    * @returns {string}
    */
   lcfirst(str: string) {
-    str += '';
-    const f = str.charAt(0).toLowerCase();
-    return f + str.substr(1);
+    return this.core.lcfirst(str);
   }
 
   /**
@@ -159,30 +112,20 @@ export class DrupalService {
    * @returns {string}
    */
   ucfirst(str: string) {
-    str += '';
-    const f = str.charAt(0).toUpperCase();
-    return f + str.substr(1);
-  }
-
-  /**
-   * Given a module name, this returns true if the module is enabled, false otherwise.
-   * @param name
-   * @returns {boolean}
-   */
-  moduleExists(name: string) {
-    try {
-      return typeof this.modules[name] !== 'undefined';
-    } catch (error) {
-      console.log('moduleExists - ' + error);
-    }
+    return this.core.ucfirst(str);
   }
 
   /**
    * Gets the X-CSRF-Token from Drupal.
-   * @returns {Observable<R|T>}
+   * @param {boolean} mapping Set to false if you want to use your custom mapping function.
+   * @returns {any}
    */
-  token() {
-    return this.requestToken()
+  token(mapping: boolean = true) {
+    if (mapping === false) {
+      return this.http.get(this.restPath() + 'rest/session/token');
+    }
+
+    return this.http.get(this.restPath() + 'rest/session/token')
       .map((response: Response) => {
         if (response.status === 200) {
           const body = response.json();
@@ -194,10 +137,15 @@ export class DrupalService {
 
   /**
    * Connects to Drupal and sets the currentUser object.
+   * @param {boolean} mapping Set to false if you want to use your custom mapping function.
    * @returns {Observable<R|T>}
    */
-  connect() {
-    return this.requestConnect()
+  connect(mapping: boolean = true) {
+    if (mapping === false) {
+      return this.http.get(this.restPath() + 'cm/connect?_format=json');
+    }
+
+    return this.http.get(this.restPath() + 'cm/connect?_format=json')
       .map((response: Response) => {
         if (response.status === 200) {
           const body = response.json();
@@ -209,12 +157,17 @@ export class DrupalService {
 
   /**
    * Logs into Drupal.
-   * @param name
-   * @param pass
+   * @param {string} name
+   * @param {string} pass
+   * @param {boolean} mapping Set to false if you want to use your custom mapping function.
    * @returns {Observable<R|T>}
    */
-  userLogin(name: string, pass: string) {
-    return this.requestUserLogin(name, pass)
+  userLogin(name: string, pass: string, mapping: boolean = true) {
+    if (mapping === false) {
+      return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass});
+    }
+
+    return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass})
       .map((response: Response) => {
         if (response.status === 200) {
           const body = response.json();
@@ -222,32 +175,6 @@ export class DrupalService {
         }
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Server error'));
-  }
-
-  /**
-   * Gets the X-CSRF-Token from Drupal.
-   * @returns {Observable<Response>}
-   */
-  requestToken() {
-    return this.http.get(this.restPath() + 'rest/session/token');
-  }
-
-  /**
-   * Connects to Drupal.
-   * @returns {Observable<Response>}
-   */
-  requestConnect() {
-    return this.http.get(this.restPath() + 'cm/connect?_format=json');
-  }
-
-  /**
-   * Logs into Drupal.
-   * @param name
-   * @param pass
-   * @returns {Observable<Response>}
-   */
-  requestUserLogin(name: string, pass: string) {
-    return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass});
   }
 
 }
