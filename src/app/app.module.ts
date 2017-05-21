@@ -17,9 +17,9 @@ import {DrupalService, SITE_PATH, BASE_PATH} from './drupal.service';
     HttpModule
   ],
   providers: [
+    DrupalService,
     {provide: SITE_PATH, useValue: 'http://example.com'},
-    {provide: BASE_PATH, useValue: '/'},
-    DrupalService
+    {provide: BASE_PATH, useValue: '/'}
   ],
   bootstrap: [AppComponent]
 })

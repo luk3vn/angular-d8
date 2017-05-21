@@ -6,8 +6,6 @@ import {Observable} from 'rxjs/Rx';
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/catch';
 
-import {CoreService} from './core.service';
-
 export let SITE_PATH = new InjectionToken<string>('site.path');
 export let BASE_PATH = new InjectionToken<string>('base.path');
 
@@ -18,8 +16,7 @@ export class DrupalService {
 
   constructor(@Inject(SITE_PATH) private sitePath: string,
               @Inject(BASE_PATH) private basePath: string,
-              private http: Http,
-              private core: CoreService) {
+              private http: Http) {
   }
 
   restPath() {
@@ -31,7 +28,10 @@ export class DrupalService {
   }
 
   isEmpty(value: any) {
-    return this.core.isEmpty(value);
+    if (value !== null && typeof value === 'object') {
+      return Object.keys(value).length === 0;
+    }
+    return (typeof value === 'undefined' || value === null || value === '');
   }
 
   /**
@@ -40,7 +40,12 @@ export class DrupalService {
    * @returns {boolean}
    */
   functionExists(name: string) {
-    return this.core.functionExists(name);
+    try {
+      const func = eval('typeof ' + name);
+      return (func === 'function');
+    } catch (error) {
+      alert('functionExists - ' + error);
+    }
   }
 
   /**
@@ -50,7 +55,25 @@ export class DrupalService {
    * @returns {boolean}
    */
   inArray(needle: any, haystack: any) {
-    return this.core.inArray(needle, haystack);
+    try {
+      if (typeof haystack === 'undefined') {
+        return false;
+      }
+      if (typeof needle === 'string') {
+        return (haystack.indexOf(needle) > -1);
+      } else {
+        let found = false;
+        for (let i = 0; i < haystack.length; i++) {
+          if (haystack[i] === needle) {
+            found = true;
+            break;
+          }
+        }
+        return found;
+      }
+    } catch (error) {
+      console.log('inArray - ' + error);
+    }
   }
 
   /**
@@ -59,7 +82,7 @@ export class DrupalService {
    * @returns {boolean}
    */
   isArray(obj: object) {
-    return this.core.isArray(obj);
+    return Object.prototype.toString.call(obj) === '[object Array]';
   }
 
   /**
@@ -68,7 +91,10 @@ export class DrupalService {
    * @returns {boolean}
    */
   isInt(n: any) {
-    return this.core.isInt(n);
+    if (typeof n === 'string') {
+      n = parseInt(n, 0);
+    }
+    return typeof n === 'number' && n % 1 === 0;
   }
 
   /**
@@ -77,7 +103,7 @@ export class DrupalService {
    * @returns {boolean}
    */
   isPromise(obj: object) {
-    return this.core.isPromise(obj);
+    return Promise.resolve(obj) === obj;
   }
 
   /**
@@ -86,7 +112,13 @@ export class DrupalService {
    * @returns {any}
    */
   shuffle(array: any) {
-    return this.core.shuffle(array);
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = array[i];
+      array[i] = array[j];
+      array[j] = temp;
+    }
+    return array;
   }
 
   /**
@@ -94,7 +126,8 @@ export class DrupalService {
    * @returns {number}
    */
   time() {
-    return this.core.time();
+    const d: any = new Date();
+    return Math.floor(d / 1000);
   }
 
   /**
@@ -103,7 +136,9 @@ export class DrupalService {
    * @returns {string}
    */
   lcfirst(str: string) {
-    return this.core.lcfirst(str);
+    str += '';
+    const f = str.charAt(0).toLowerCase();
+    return f + str.substr(1);
   }
 
   /**
@@ -112,7 +147,9 @@ export class DrupalService {
    * @returns {string}
    */
   ucfirst(str: string) {
-    return this.core.ucfirst(str);
+    str += '';
+    const f = str.charAt(0).toUpperCase();
+    return f + str.substr(1);
   }
 
   /**
