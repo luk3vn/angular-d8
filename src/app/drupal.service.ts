@@ -12,8 +12,6 @@ export let BASE_PATH = new InjectionToken<string>('base.path');
 @Injectable()
 export class DrupalService {
 
-  private modules: Array<String>;
-
   constructor(@Inject(SITE_PATH) private sitePath: string,
               @Inject(BASE_PATH) private basePath: string,
               private http: Http) {
