@@ -4,7 +4,6 @@ import {FormsModule} from '@angular/forms';
 import {HttpModule} from '@angular/http';
 
 import {AppComponent} from './app.component';
-
 import {DrupalService, SITE_PATH, BASE_PATH} from './drupal.service';
 
 @NgModule({
@@ -18,7 +17,7 @@ import {DrupalService, SITE_PATH, BASE_PATH} from './drupal.service';
   ],
   providers: [
     DrupalService,
-    {provide: SITE_PATH, useValue: 'http://example.com'},
+    {provide: SITE_PATH, useValue: 'http://vsd2.dev'},
     {provide: BASE_PATH, useValue: '/'}
   ],
   bootstrap: [AppComponent]

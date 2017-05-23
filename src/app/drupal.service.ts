@@ -1,5 +1,5 @@
 import {InjectionToken, Injectable, Inject} from '@angular/core';
-import {Http, Response} from '@angular/http';
+import {Http, Response, Headers, RequestOptions} from '@angular/http';
 import {Observable} from 'rxjs/Rx';
 
 // Import RxJs required methods
@@ -12,9 +12,17 @@ export let BASE_PATH = new InjectionToken<string>('base.path');
 @Injectable()
 export class DrupalService {
 
-  constructor(@Inject(SITE_PATH) private sitePath: string,
-              @Inject(BASE_PATH) private basePath: string,
-              private http: Http) {
+  private authData: string;
+
+  private csrfToken: string;
+
+  private logoutToken: string;
+
+  private currentUser: object;
+
+  constructor(private http: Http,
+              @Inject(SITE_PATH) private sitePath: string,
+              @Inject(BASE_PATH) private basePath: string) {
   }
 
   restPath() {
@@ -96,15 +104,6 @@ export class DrupalService {
   }
 
   /**
-   * Checks if incoming variable is a Promise, returns true or false.
-   * @param obj
-   * @returns {boolean}
-   */
-  isPromise(obj: object) {
-    return Promise.resolve(obj) === obj;
-  }
-
-  /**
    * Shuffle an array.
    * @param array
    * @returns {any}
@@ -167,49 +166,280 @@ export class DrupalService {
           return body.data || body;
         }
       })
-      .catch((error: any) => Observable.throw(error.json().message || 'Server error'));
+      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+  }
+
+  getCurrentUser() {
+    return this.currentUser;
+  }
+
+  setCurrentUser(account: object) {
+    this.currentUser = account;
+  }
+
+  getDefaultUser() {
+    return {
+      uid: 0,
+      name: 'Anonymous',
+      mail: '',
+      role: ['anonymous']
+    };
   }
 
   /**
    * Connects to Drupal and sets the currentUser object.
-   * @param {boolean} mapping Set to false if you want to use your custom mapping function.
    * @returns {Observable<R|T>}
    */
-  connect(mapping: boolean = true) {
-    if (mapping === false) {
-      return this.http.get(this.restPath() + 'cm/connect?_format=json');
-    }
-
+  connect() {
     return this.http.get(this.restPath() + 'cm/connect?_format=json')
       .map((response: Response) => {
+        let data = {};
+
         if (response.status === 200) {
-          const body = response.json();
-          return body.data || body;
+          if (typeof response['_body'] !== 'undefined') {
+            data = JSON.parse(response['_body']);
+          }
+
+          if (typeof data['uid'] !== 'undefined' && data['uid'] > 0) {
+            this.userLoad(data['uid']);
+          } else {
+            this.setCurrentUser(this.getDefaultUser());
+          }
         }
+
+        return data;
       })
-      .catch((error: any) => Observable.throw(error.json().message || 'Server error'));
+      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
   }
 
   /**
    * Logs into Drupal.
    * @param {string} name
    * @param {string} pass
-   * @param {boolean} mapping Set to false if you want to use your custom mapping function.
    * @returns {Observable<R|T>}
    */
-  userLogin(name: string, pass: string, mapping: boolean = true) {
-    if (mapping === false) {
-      return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass});
-    }
-
+  userLogin(name: string, pass: string) {
     return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass})
       .map((response: Response) => {
+        let result = {};
+
         if (response.status === 200) {
-          const body = response.json();
-          return body.data || body;
+          if (typeof response['_body'] !== 'undefined') {
+            result = JSON.parse(response['_body']);
+          }
+
+          if (typeof result['csrf_token'] !== 'undefined') {
+            this.csrfToken = result['csrf_token'];
+          }
+
+          if (typeof result['logout_token'] !== 'undefined') {
+            this.logoutToken = result['logout_token'];
+          }
+
+          if (typeof result['current_user'] !== 'undefined' && result['current_user']['uid'] > 0) {
+            this.setCurrentUser(result['current_user']);
+            this.authData = btoa(name + ':' + pass);
+          }
         }
+
+        return result;
       })
-      .catch((error: any) => Observable.throw(error.json().message || 'Server error'));
+      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+  }
+
+  /**
+   * Logs out of Drupal, clears the currentUser object, then performs a connect() to properly set the currentUser
+   * object.
+   * @returns {Observable<R|T>}
+   */
+  userLogout() {
+    return this.http.get(this.restPath() + 'user/logout')
+      .map((response: Response) => {
+        let result = {};
+
+        if (response.status === 200 || response.status === 303) {
+          if (typeof response['_body'] !== 'undefined') {
+            result = JSON.parse(response['_body']);
+          }
+
+          this.setCurrentUser(this.getDefaultUser());
+          this.connect();
+        }
+
+        return result;
+      })
+      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+  }
+
+  /**
+   * Registers a new user.
+   * @param {string} name
+   * @param {string} pass
+   * @param {string} mail
+   * @returns {any}
+   */
+  userRegister(name: string, pass: string, mail: string) {
+    return this.http.post(this.restPath() + 'user/register?_format=json', {name: name, pass: pass, mail: mail})
+      .map((response: Response) => {
+        let result = {};
+
+        if (response.status === 200) {
+          if (typeof response['_body'] !== 'undefined') {
+            result = JSON.parse(response['_body']);
+          }
+
+          this.connect();
+        }
+
+        return result;
+      })
+      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+  }
+
+  /**
+   * Given a user id, this will attempt to load the account.
+   * @param uid
+   */
+  userLoad(uid: number) {
+    return this.entityLoad('user', uid);
+  }
+
+  /**
+   * Given an entity type and id, this will attempt to load the entity.
+   * @param entityType
+   * @param entityID
+   */
+  entityLoad(entityType: string, entityID: any) {
+    switch (entityType) {
+      case 'user':
+        return this.getUserEntity(entityID).load();
+    }
+  }
+
+  getEntity(entityType: string, bundle: string, entityID: any) {
+    const that = this;
+
+    return {
+      entity: {},
+      bundle: bundle,
+      entityID: entityID,
+      entityKeys: {},
+
+      get: function (prop: string, delta: number) {
+        if (!this.entity || typeof this.entity[prop] === 'undefined') {
+          return null;
+        }
+        return typeof delta !== 'undefined' ? this.entity[prop][delta] : this.entity[prop];
+      },
+
+      set: function (prop: string, delta: number, val: any) {
+        if (this.entity) {
+          if (typeof delta !== 'undefined' && typeof this.entity[prop] !== 'undefined') {
+            this.entity[prop][delta] = val;
+          } else {
+            this.entity[prop] = val;
+          }
+        }
+      },
+
+      getEntityKey: function (key: string) {
+        return typeof this.entityKeys[key] !== 'undefined' ? this.entityKeys[key] : null;
+      },
+
+      setEntityKey: function(key: string, val: any) {
+        this.entityKeys[key] = val;
+      },
+
+      getEntityType: function() {
+        return this.entityKeys['type'];
+      },
+
+      getBundle: function() {
+        const b = this.getEntityKey('bundle');
+        return typeof this.entity[b] !== 'undefined' ? this.entity[b][0]['target_id'] : null;
+      },
+
+      id: function() {
+        const id = this.getEntityKey('id');
+        return typeof this.entity[id] !== 'undefined' ? this.entity[id][0]['value'] : null;
+      },
+
+      language: function() {
+        return this.entity['langcode'][0]['value'];
+      },
+
+      isNew: function() {
+        return !this.id();
+      },
+
+      label: function() {
+        const label = this.getEntityKey('label');
+        return typeof this.entity[label] !== 'undefined' ? this.entity[label][0]['value'] : null;
+      },
+
+      stringify: function() {
+        return JSON.stringify(this.entity);
+      },
+
+      load: function() {
+        const headers = new Headers({
+          'Authorization': 'Basic ' + that.authData
+        });
+        const options = new RequestOptions({headers: headers});
+
+        return that.http.get(that.restPath() + entityType + '/' + entityID + '?_format=json', options)
+          .map((response: Response) => {
+            if (response.status === 200) {
+              let _entity = {};
+
+              if (typeof response['_body'] !== 'undefined') {
+                _entity = JSON.parse(response['_body']);
+              }
+
+              this.entity = _entity;
+            }
+          })
+          .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+      }
+    };
+  }
+
+  getUserEntity(uid: any) {
+    const entity = this.getEntity('user', '', uid);
+
+    entity['entityID'] = uid;
+
+    // Set the entity keys.
+    entity['entityKeys']['type'] = 'user';
+    entity['entityKeys']['bundle'] = 'user';
+    entity['entityKeys']['id'] = 'uid';
+    entity['entityKeys']['label'] = 'name';
+
+    entity['getAccountName'] = function(){
+      return this.label();
+    };
+
+    entity['getRoles'] = function(){
+      const roles = [];
+      for (let i = 0; i < this.entity['roles'].length; i++) {
+        roles.push(this.entity['roles'][i]['target_id']);
+      }
+      return roles;
+    };
+
+    entity['hasRole'] = function(role: string){
+      return this.utils.inArray(role, this.getRoles());
+    };
+
+    entity['isAnonymous'] = function(){
+      return this.id() === 0;
+    };
+
+    entity['isAuthenticated'] = function(){
+      return !this.isAnonymous();
+    };
+
+    return entity;
   }
 
 }
