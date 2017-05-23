@@ -17,7 +17,7 @@ import {DrupalService, SITE_PATH, BASE_PATH} from './drupal.service';
   ],
   providers: [
     DrupalService,
-    {provide: SITE_PATH, useValue: 'http://vsd2.dev'},
+    {provide: SITE_PATH, useValue: 'http://example.com'},
     {provide: BASE_PATH, useValue: '/'}
   ],
   bootstrap: [AppComponent]
