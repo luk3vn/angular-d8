@@ -23,6 +23,9 @@ export class DrupalService {
   constructor(private http: Http,
               @Inject(SITE_PATH) private sitePath: string,
               @Inject(BASE_PATH) private basePath: string) {
+    if (localStorage.getItem('authData')) {
+      this.authData = localStorage.getItem('authData');
+    }
   }
 
   restPath() {
@@ -192,7 +195,7 @@ export class DrupalService {
    */
   connect() {
     const headers = new Headers({
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Authorization': 'Basic ' + this.authData
     });
     const options = new RequestOptions({headers: headers});
 
@@ -206,7 +209,12 @@ export class DrupalService {
           }
 
           if (typeof data['uid'] !== 'undefined' && data['uid'] > 0) {
-            this.userLoad(data['uid']);
+            this.userLoad(data['uid']).subscribe(
+              account => {
+              },
+              error => {
+              }
+            );
           } else {
             this.setCurrentUser(this.getDefaultUser());
           }
@@ -249,6 +257,9 @@ export class DrupalService {
           if (typeof result['current_user'] !== 'undefined' && result['current_user']['uid'] > 0) {
             this.setCurrentUser(result['current_user']);
             this.authData = btoa(name + ':' + pass);
+
+            // Save user to local storage.
+            localStorage.setItem('authData', this.authData);
           }
         }
 
@@ -276,6 +287,9 @@ export class DrupalService {
           if (typeof response['_body'] !== 'undefined') {
             result = JSON.parse(response['_body']);
           }
+
+          // Remove user from local storage.
+          localStorage.removeItem('authData');
 
           this.setCurrentUser(this.getDefaultUser());
           this.connect();
@@ -367,42 +381,42 @@ export class DrupalService {
         return typeof this.entityKeys[key] !== 'undefined' ? this.entityKeys[key] : null;
       },
 
-      setEntityKey: function(key: string, val: any) {
+      setEntityKey: function (key: string, val: any) {
         this.entityKeys[key] = val;
       },
 
-      getEntityType: function() {
+      getEntityType: function () {
         return this.entityKeys['type'];
       },
 
-      getBundle: function() {
+      getBundle: function () {
         const b = this.getEntityKey('bundle');
         return typeof this.entity[b] !== 'undefined' ? this.entity[b][0]['target_id'] : null;
       },
 
-      id: function() {
+      id: function () {
         const id = this.getEntityKey('id');
         return typeof this.entity[id] !== 'undefined' ? this.entity[id][0]['value'] : null;
       },
 
-      language: function() {
+      language: function () {
         return this.entity['langcode'][0]['value'];
       },
 
-      isNew: function() {
+      isNew: function () {
         return !this.id();
       },
 
-      label: function() {
+      label: function () {
         const label = this.getEntityKey('label');
         return typeof this.entity[label] !== 'undefined' ? this.entity[label][0]['value'] : null;
       },
 
-      stringify: function() {
+      stringify: function () {
         return JSON.stringify(this.entity);
       },
 
-      load: function() {
+      load: function () {
         const headers = new Headers({
           'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': 'Basic ' + that.authData
@@ -437,11 +451,11 @@ export class DrupalService {
     entity['entityKeys']['id'] = 'uid';
     entity['entityKeys']['label'] = 'name';
 
-    entity['getAccountName'] = function(){
+    entity['getAccountName'] = function () {
       return this.label();
     };
 
-    entity['getRoles'] = function(){
+    entity['getRoles'] = function () {
       const roles = [];
       for (let i = 0; i < this.entity['roles'].length; i++) {
         roles.push(this.entity['roles'][i]['target_id']);
@@ -449,15 +463,15 @@ export class DrupalService {
       return roles;
     };
 
-    entity['hasRole'] = function(role: string){
+    entity['hasRole'] = function (role: string) {
       return this.utils.inArray(role, this.getRoles());
     };
 
-    entity['isAnonymous'] = function(){
+    entity['isAnonymous'] = function () {
       return this.id() === 0;
     };
 
-    entity['isAuthenticated'] = function(){
+    entity['isAuthenticated'] = function () {
       return !this.isAnonymous();
     };
 
