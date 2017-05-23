@@ -40,9 +40,9 @@ import {DrupalService, SITE_PATH, BASE_PATH} from 'angular-d8';
   ],
   providers: [
     ...
+    DrupalService,
     {provide: SITE_PATH, useValue: 'http://your-drupal-website.com'},
     {provide: BASE_PATH, useValue: '/'},
-    DrupalService,
     ...
   ],
   bootstrap: [AppComponent]
