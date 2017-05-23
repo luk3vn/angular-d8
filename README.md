@@ -65,12 +65,14 @@ export class AuthenticationService {
   }
 
   login(username: string, password: string) {
-    this.drupal.userLogin(username, password).subscribe(
-      data => {
-        ...
-      },
-      error => {
-        ...
+    return new Promise(resolve => {
+      this.drupal.userLogin(username, password).subscribe(
+        data => {
+          resolve({status: true, data: data});
+        },
+        error => {
+          resolve({status: false, data: error});
+      });
     });
   }
 
