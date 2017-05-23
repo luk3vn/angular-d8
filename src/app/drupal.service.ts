@@ -1,5 +1,5 @@
 import {InjectionToken, Injectable, Inject} from '@angular/core';
-import {Http, Response, Headers, RequestOptions} from '@angular/http';
+import {Http, Response, Headers, RequestOptions, Request, RequestMethod} from '@angular/http';
 import {Observable} from 'rxjs/Rx';
 
 // Import RxJs required methods
@@ -191,7 +191,12 @@ export class DrupalService {
    * @returns {Observable<R|T>}
    */
   connect() {
-    return this.http.get(this.restPath() + 'cm/connect?_format=json')
+    const headers = new Headers({
+      'Content-Type': 'application/x-www-form-urlencoded'
+    });
+    const options = new RequestOptions({headers: headers});
+
+    return this.http.get(this.restPath() + 'cm/connect?_format=json', options)
       .map((response: Response) => {
         let data = {};
 
@@ -219,7 +224,12 @@ export class DrupalService {
    * @returns {Observable<R|T>}
    */
   userLogin(name: string, pass: string) {
-    return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass})
+    const headers = new Headers({
+      'Content-Type': 'application/x-www-form-urlencoded'
+    });
+    const options = new RequestOptions({headers: headers});
+
+    return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass}, options)
       .map((response: Response) => {
         let result = {};
 
@@ -253,7 +263,12 @@ export class DrupalService {
    * @returns {Observable<R|T>}
    */
   userLogout() {
-    return this.http.get(this.restPath() + 'user/logout')
+    const headers = new Headers({
+      'Content-Type': 'application/x-www-form-urlencoded'
+    });
+    const options = new RequestOptions({headers: headers});
+
+    return this.http.get(this.restPath() + 'user/logout', options)
       .map((response: Response) => {
         let result = {};
 
@@ -279,7 +294,12 @@ export class DrupalService {
    * @returns {any}
    */
   userRegister(name: string, pass: string, mail: string) {
-    return this.http.post(this.restPath() + 'user/register?_format=json', {name: name, pass: pass, mail: mail})
+    const headers = new Headers({
+      'Content-Type': 'application/x-www-form-urlencoded'
+    });
+    const options = new RequestOptions({headers: headers});
+
+    return this.http.post(this.restPath() + 'user/register?_format=json', {name: name, pass: pass, mail: mail}, options)
       .map((response: Response) => {
         let result = {};
 
@@ -322,6 +342,7 @@ export class DrupalService {
     return {
       entity: {},
       bundle: bundle,
+      entityType: entityType,
       entityID: entityID,
       entityKeys: {},
 
@@ -383,11 +404,12 @@ export class DrupalService {
 
       load: function() {
         const headers = new Headers({
+          'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': 'Basic ' + that.authData
         });
         const options = new RequestOptions({headers: headers});
 
-        return that.http.get(that.restPath() + entityType + '/' + entityID + '?_format=json', options)
+        return that.http.get(that.restPath() + this.entityType + '/' + this.entityID + '?_format=json', options)
           .map((response: Response) => {
             if (response.status === 200) {
               let _entity = {};

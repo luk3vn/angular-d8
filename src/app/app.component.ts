@@ -9,6 +9,7 @@ import {DrupalService} from './drupal.service';
 export class AppComponent {
   title = 'app works!';
 
-  constructor(private drupal: DrupalService) {}
+  constructor(private drupal: DrupalService) {
+  }
 
 }
