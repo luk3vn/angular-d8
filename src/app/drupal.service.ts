@@ -362,6 +362,9 @@ export class DrupalService {
     switch (entityType) {
       case 'user':
         return this.getUserEntity(entityID).load();
+
+      case 'node':
+        return this.getNodeEntity(entityID).load();
     }
   }
 
@@ -456,8 +459,13 @@ export class DrupalService {
     };
   }
 
+  /**
+   * Given a user id or JSON object, this Creates a new User object.
+   * @param uid_or_account
+   * @returns {object}
+   */
   getUserEntity(uid_or_account: any) {
-    const ent = this.getEntity('user', '', uid_or_account);
+    const ent = this.getEntity('user', 'user', uid_or_account);
 
     const obj = {
       entityKeys: {
@@ -499,6 +507,72 @@ export class DrupalService {
     } else {
       const id = entity['getEntityKey']('id');
       entity['entity'][id] = [{value: uid_or_account}];
+    }
+
+    return entity;
+  }
+
+  /**
+   * Given a node id or JSON object, this Creates a new Node object.
+   * @param nid_or_node
+   * @returns {object}
+   */
+  getNodeEntity(nid_or_node: any) {
+    const ent = this.getEntity('node', 'type', nid_or_node);
+
+    const obj = {
+      entityKeys: {
+        type: 'node',
+        bundle: 'type',
+        id: 'nid',
+        label: 'title'
+      },
+
+      getTitle: function () {
+        return this.label();
+      },
+
+      setTitle: function (title: string) {
+        try {
+          this.entity.title[0].value = title;
+        } catch (e) { console.log('Node.setTitle - ' + e); }
+      },
+
+      getType: function () {
+        return this.getBundle();
+      },
+
+      getCreatedTime: function () {
+        return this.entity.created[0].value;
+      },
+
+      isPromoted: function () {
+        return this.entity.promote[0].value;
+      },
+
+      isPublished: function () {
+        return this.entity.status[0].value;
+      },
+
+      isSticky: function () {
+        return this.entity.sticky[0].value;
+      }
+    };
+
+    const entity = Object.assign({}, ent, obj);
+
+    if (typeof nid_or_node === 'object') {
+      entity['entity'] = nid_or_node;
+    } else {
+      const id = entity['getEntityKey']('id');
+      entity['entity'][id] = [{value: nid_or_node}];
+    }
+
+    // Set default values.
+    if (entity.entity) {
+      if (!entity.entity.hasOwnProperty('title')) {
+        entity.entity['title'] = [{value: ''}];
+      }
     }
 
     return entity;
