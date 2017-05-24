@@ -173,8 +173,10 @@ export class DrupalService {
     return this.http.get(this.restPath() + 'rest/session/token')
       .map((response: Response) => {
         if (response.status === 200) {
-          const body = response.json();
-          return body.data || body;
+          if (typeof response['_body'] !== 'undefined') {
+            const data = JSON.parse(response['_body']);
+            return data;
+          }
         }
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
@@ -455,6 +457,71 @@ export class DrupalService {
             return this;
           })
           .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+      },
+
+      save: function () {
+        let request: any;
+        let path: string;
+        let method: string;
+
+        if (this.isNew()) {
+          path = that.restPath() + 'entity/' + this.entityType;
+          method = 'POST';
+        } else {
+          path = that.restPath() + this.entityType + '/' + this.id();
+          method = 'PATCH';
+        }
+
+        const headers = new Headers({
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + that.authData
+        });
+        const options = new RequestOptions({
+          headers: headers,
+          method: method,
+          body: this.stringify()
+        });
+
+        if (this.isNew()) {
+          request = that.http.post(path, this.stringify(), options);
+        } else {
+          request = that.http.patch(path, this.stringify(), options);
+        }
+
+        return request.map((response: Response) => {
+          if (
+            (method === 'POST' && response.status === 201) ||
+            (method === 'PATCH' && response.status === 204) ||
+            response.status === 200
+          ) {
+            return response;
+          }
+        }).catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+      },
+
+      delete: function () {
+        const data = {};
+
+        data[this.getEntityKey('bundle')] = [{
+          target_id: this.getBundle()
+        }];
+
+        const headers = new Headers({
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + that.authData
+        });
+        const options = new RequestOptions({
+          headers: headers,
+          body: data
+        });
+
+        return that.http.delete(that.restPath() + this.entityType + '/' + this.id(), options)
+          .map((response: Response) => {
+            if (response.status === 204) {
+              return true;
+            }
+          })
+          .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
       }
     };
   }
@@ -535,7 +602,9 @@ export class DrupalService {
       setTitle: function (title: string) {
         try {
           this.entity.title[0].value = title;
-        } catch (e) { console.log('Node.setTitle - ' + e); }
+        } catch (e) {
+          console.log('Node.setTitle - ' + e);
+        }
       },
 
       getType: function () {
