@@ -1,5 +1,5 @@
 import {InjectionToken, Injectable, Inject} from '@angular/core';
-import {Http, Response, Headers, RequestOptions, Request, RequestMethod} from '@angular/http';
+import {Http, Response, Headers, RequestOptions} from '@angular/http';
 import {Observable} from 'rxjs/Rx';
 
 // Import RxJs required methods
@@ -12,11 +12,11 @@ export let BASE_PATH = new InjectionToken<string>('base.path');
 @Injectable()
 export class DrupalService {
 
-  private authData: string;
+  private authData = '';
 
-  private csrfToken: string;
+  private csrfToken = '';
 
-  private logoutToken: string;
+  private logoutToken = '';
 
   private currentUser: object;
 
@@ -25,6 +25,14 @@ export class DrupalService {
               @Inject(BASE_PATH) private basePath: string) {
     if (localStorage.getItem('authData')) {
       this.authData = localStorage.getItem('authData');
+    }
+
+    if (localStorage.getItem('csrfToken')) {
+      this.csrfToken = localStorage.getItem('csrfToken');
+    }
+
+    if (localStorage.getItem('logoutToken')) {
+      this.logoutToken = localStorage.getItem('logoutToken');
     }
   }
 
@@ -172,57 +180,56 @@ export class DrupalService {
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
   }
 
-  getCurrentUser() {
-    return this.currentUser;
-  }
-
-  setCurrentUser(account: object) {
-    this.currentUser = account;
-  }
-
-  getDefaultUser() {
-    return {
-      uid: 0,
-      name: 'Anonymous',
-      mail: '',
-      role: ['anonymous']
-    };
-  }
-
   /**
    * Connects to Drupal and sets the currentUser object.
-   * @returns {Observable<R|T>}
+   * @returns {Promise}
    */
   connect() {
     const headers = new Headers({
       'Authorization': 'Basic ' + this.authData
     });
-    const options = new RequestOptions({headers: headers});
+    const options = new RequestOptions({
+      headers: headers,
+      withCredentials: true
+    });
 
-    return this.http.get(this.restPath() + 'cm/connect?_format=json', options)
+    const request = this.http.get(this.restPath() + 'cm/connect?_format=json', options)
       .map((response: Response) => {
         let data = {};
-
         if (response.status === 200) {
           if (typeof response['_body'] !== 'undefined') {
             data = JSON.parse(response['_body']);
           }
+        }
+        return data;
+      })
+      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
 
+    return new Promise(resolve => {
+      request.subscribe(
+        data => {
           if (typeof data['uid'] !== 'undefined' && data['uid'] > 0) {
             this.userLoad(data['uid']).subscribe(
               account => {
+                this.setCurrentUser(account);
+                resolve(this.getCurrentUser());
               },
               error => {
+                this.setCurrentUser(this.getDefaultUser());
+                resolve(this.getCurrentUser());
               }
             );
           } else {
             this.setCurrentUser(this.getDefaultUser());
+            resolve(this.getCurrentUser());
           }
-        }
-
-        return data;
-      })
-      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+        },
+        error => {
+          this.setCurrentUser(this.getDefaultUser());
+          resolve(this.getCurrentUser());
+        },
+      );
+    });
   }
 
   /**
@@ -248,17 +255,16 @@ export class DrupalService {
 
           if (typeof result['csrf_token'] !== 'undefined') {
             this.csrfToken = result['csrf_token'];
+            localStorage.setItem('csrfToken', this.csrfToken);
           }
 
           if (typeof result['logout_token'] !== 'undefined') {
             this.logoutToken = result['logout_token'];
+            localStorage.setItem('logoutToken', this.logoutToken);
           }
 
           if (typeof result['current_user'] !== 'undefined' && result['current_user']['uid'] > 0) {
-            this.setCurrentUser(result['current_user']);
             this.authData = btoa(name + ':' + pass);
-
-            // Save user to local storage.
             localStorage.setItem('authData', this.authData);
           }
         }
@@ -277,27 +283,19 @@ export class DrupalService {
     const headers = new Headers({
       'Content-Type': 'application/x-www-form-urlencoded'
     });
-    const options = new RequestOptions({headers: headers});
+    const options = new RequestOptions({
+      headers: headers
+    });
 
     return this.http.get(this.restPath() + 'user/logout', options)
       .map((response: Response) => {
-        let result = {};
-
-        if (response.status === 200 || response.status === 303) {
-          if (typeof response['_body'] !== 'undefined') {
-            result = JSON.parse(response['_body']);
-          }
-
-          // Remove user from local storage.
-          localStorage.removeItem('authData');
-
-          this.setCurrentUser(this.getDefaultUser());
-          this.connect();
-        }
-
-        return result;
       })
-      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+      .catch((error: any) => Observable.throw(error.json().message || 'Network Error'))
+      .finally(() => {
+        localStorage.removeItem('csrfToken');
+        localStorage.removeItem('logoutToken');
+        localStorage.removeItem('authData');
+      });
   }
 
   /**
@@ -305,7 +303,7 @@ export class DrupalService {
    * @param {string} name
    * @param {string} pass
    * @param {string} mail
-   * @returns {any}
+   * @returns {Observable<R|T>}
    */
   userRegister(name: string, pass: string, mail: string) {
     const headers = new Headers({
@@ -328,6 +326,23 @@ export class DrupalService {
         return result;
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+  }
+
+  getCurrentUser() {
+    return this.currentUser;
+  }
+
+  setCurrentUser(account: object) {
+    this.currentUser = account;
+  }
+
+  getDefaultUser() {
+    return this.getUserEntity({
+      uid: [{value: 0}],
+      name: [{value: 'Anonymous'}],
+      mail: [{value: ''}],
+      roles: [{target_id: 'anonymous'}]
+    });
   }
 
   /**
@@ -357,7 +372,6 @@ export class DrupalService {
       entity: {},
       bundle: bundle,
       entityType: entityType,
-      entityID: entityID,
       entityKeys: {},
 
       get: function (prop: string, delta: number) {
@@ -423,7 +437,7 @@ export class DrupalService {
         });
         const options = new RequestOptions({headers: headers});
 
-        return that.http.get(that.restPath() + this.entityType + '/' + this.entityID + '?_format=json', options)
+        return that.http.get(that.restPath() + this.entityType + '/' + this.id() + '?_format=json', options)
           .map((response: Response) => {
             if (response.status === 200) {
               let _entity = {};
@@ -434,46 +448,58 @@ export class DrupalService {
 
               this.entity = _entity;
             }
+
+            return this;
           })
           .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
       }
     };
   }
 
-  getUserEntity(uid: any) {
-    const entity = this.getEntity('user', '', uid);
+  getUserEntity(uid_or_account: any) {
+    const ent = this.getEntity('user', '', uid_or_account);
 
-    entity['entityID'] = uid;
+    const obj = {
+      entityKeys: {
+        type: 'user',
+        bundle: 'user',
+        id: 'uid',
+        label: 'name'
+      },
 
-    // Set the entity keys.
-    entity['entityKeys']['type'] = 'user';
-    entity['entityKeys']['bundle'] = 'user';
-    entity['entityKeys']['id'] = 'uid';
-    entity['entityKeys']['label'] = 'name';
+      getAccountName: function () {
+        return this.label();
+      },
 
-    entity['getAccountName'] = function () {
-      return this.label();
-    };
+      getRoles: function () {
+        const roles = [];
+        for (let i = 0; i < this.entity['roles'].length; i++) {
+          roles.push(this.entity['roles'][i]['target_id']);
+        }
+        return roles;
+      },
 
-    entity['getRoles'] = function () {
-      const roles = [];
-      for (let i = 0; i < this.entity['roles'].length; i++) {
-        roles.push(this.entity['roles'][i]['target_id']);
+      hasRole: function (role: string) {
+        return this.utils.inArray(role, this.getRoles());
+      },
+
+      isAnonymous: function () {
+        return this.id() === 0;
+      },
+
+      isAuthenticated: function () {
+        return !this.isAnonymous();
       }
-      return roles;
     };
 
-    entity['hasRole'] = function (role: string) {
-      return this.utils.inArray(role, this.getRoles());
-    };
+    const entity = Object.assign({}, ent, obj);
 
-    entity['isAnonymous'] = function () {
-      return this.id() === 0;
-    };
-
-    entity['isAuthenticated'] = function () {
-      return !this.isAnonymous();
-    };
+    if (typeof uid_or_account === 'object') {
+      entity['entity'] = uid_or_account;
+    } else {
+      const id = entity['getEntityKey']('id');
+      entity['entity'][id] = [{value: uid_or_account}];
+    }
 
     return entity;
   }
