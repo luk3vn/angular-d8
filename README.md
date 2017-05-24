@@ -24,7 +24,7 @@ No need to set up anything, just import it in your code.
 
 ## Usage
 
-#### 1, In your `app.module.ts` file
+#### Import (in your `app.module.ts` file)
 
 ```TypeScript
 ...
@@ -51,7 +51,7 @@ export class AppModule {
 }
 ```
 
-#### 2, Then, for example in your authentication service 
+#### Service example 
 
 ```TypeScript
 ...
@@ -68,12 +68,41 @@ export class AuthenticationService {
     return new Promise(resolve => {
       this.drupal.userLogin(username, password).subscribe(
         data => {
-          resolve({status: true, data: data});
+          resolve({status: true, message: ''});
         },
         error => {
-          resolve({status: false, data: error});
+          resolve({status: false, message: error});
       });
     });
+  }
+
+}
+```
+
+#### Component example
+
+```TypeScript
+...
+
+import {DrupalService} from 'angular-d8';
+
+@Component({
+  selector: 'app-home',
+  template: '<h1>{{ title }}</h1>'
+})
+export class HomeComponent implements OnInit {
+
+  private title: string;
+
+  constructor(private drupal: DrupalService) {
+  }
+
+  ngOnInit() {
+    this.drupal.entityLoad('node', 1).subscribe(
+      entity => {
+        this.title = entity.label();
+      }
+    );
   }
 
 }
