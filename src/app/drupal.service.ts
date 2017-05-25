@@ -1,5 +1,6 @@
 import {InjectionToken, Injectable, Inject} from '@angular/core';
 import {Http, Response, Headers, RequestOptions} from '@angular/http';
+import {Promise} from 'es6-promise';
 import {Observable} from 'rxjs/Rx';
 
 // Import RxJs required methods
