@@ -155,7 +155,7 @@ this.drupal.entityLoad('node', 1).then(
 );
 ```
 
-#### get results from a view
+#### load a view
 
 ```TypeScript
 this.drupal.viewsLoad('my-view-url').then(
@@ -164,6 +164,8 @@ this.drupal.viewsLoad('my-view-url').then(
   }
 );
 ```
+
+#### get results from a view
 
 ```TypeScript
 public nodes: any[] = [];
