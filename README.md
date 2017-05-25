@@ -111,7 +111,7 @@ export class HomeComponent implements OnInit {
 
 ## How to...
 
-####  create new node
+#### create new node
 
 ```TypeScript
 const node = this.drupal.Node();
@@ -120,7 +120,7 @@ node.setType('page');
 node.save(); // Returns with Promise.
 ```
 
-####  retrieve a node
+#### retrieve a node
 
 ```TypeScript
 const node = this.drupal.Node(1);
@@ -134,7 +134,7 @@ this.drupal.entityLoad('node', 1).then(
 );
 ```
 
-####  update a node
+#### update a node
 
 ```TypeScript
 this.drupal.entityLoad('node', 1).then(
@@ -145,7 +145,7 @@ this.drupal.entityLoad('node', 1).then(
 );
 ```
 
-####  delete a node
+#### delete a node
 
 ```TypeScript
 this.drupal.entityLoad('node', 1).then(
@@ -153,4 +153,34 @@ this.drupal.entityLoad('node', 1).then(
     node.delete(); // Returns with Promise.
   }
 );
+```
+
+#### get results from a view
+
+```TypeScript
+this.drupal.viewsLoad('my-view-url').then(
+  view => {
+    ...
+  }
+);
+```
+
+```TypeScript
+public nodes: any[] = [];
+
+ngOnInit() {
+  // View with 'Entity' display mode.
+  this.drupal.viewsLoad('my-view-url').then(
+    view => {
+      for (let row of view.getResults()) {
+        let entity = this.drupal.Node(row);
+      
+        this.nodes.push({
+          id: entity.id(),
+          label: entity.label()
+        });
+      }
+    }
+  );
+}
 ```

@@ -776,4 +776,91 @@ export class DrupalService {
     return entity;
   }
 
+  /**
+   * The Views constructor.
+   * @param path
+   * @return {*}
+   * @constructor
+   */
+  Views(path: string) {
+    const that = this;
+
+    return {
+      path: path,
+      results: null,
+
+      /**
+       * Returns the path to the rest export.
+       * @return {string}
+       */
+      getPath: function () {
+        return this.path;
+      },
+
+      /**
+       * Returns the results, if any.
+       * @return {*}
+       */
+      getResults: function () {
+        return this.results;
+      },
+
+      /**
+       * Retrieves the Views' results from the Drupal site's rest export.
+       * @returns {Promise<any>}
+       */
+      getView: function () {
+        const headers = new Headers({
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + that.authData
+        });
+
+        const options = new RequestOptions({
+          headers: headers
+        });
+
+        const request = that.http.get(that.restPath() + this.getPath(), options)
+          .map((response: Response) => {
+            if (response.status === 200) {
+              return JSON.parse(response['_body']);
+            }
+          })
+          .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+
+        return new Promise<any>((resolve, reject) => {
+          request.subscribe(
+            view => {
+              this.results = view;
+              resolve(view);
+            },
+            error => {
+              reject(error);
+            }
+          );
+        });
+      }
+    };
+  }
+
+  /**
+   * Loads a view and fetches its results from the Drupal site.
+   * @param path
+   * @return {Promise<any>}
+   */
+  viewsLoad(path: string) {
+    return new Promise<any>((resolve, reject) => {
+      const view = this.Views(path);
+
+      view.getView().then(
+        data => {
+          resolve(data);
+        }
+      ).catch(
+        error => {
+          reject(error);
+        }
+      );
+    });
+  }
+
 }
