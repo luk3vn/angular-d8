@@ -109,11 +109,44 @@ export class HomeComponent implements OnInit {
 }
 ```
 
-#### How to create new node?
+## How to...
+
+####  create new node
 
 ```TypeScript
 const node = this.drupal.Node();
 node.setTitle('Test node');
 node.setType('page');
 node.save(); // Returns with Promise.
+```
+
+####  retrieve a node
+
+```TypeScript
+this.drupal.entityLoad('node', 1).then(
+  node => {
+    ...
+  }
+);
+```
+
+####  update a node
+
+```TypeScript
+this.drupal.entityLoad('node', 1).then(
+  node => {
+    node.setTitle('New title');
+    node.save(); // Returns with Promise.
+  }
+);
+```
+
+####  delete a node
+
+```TypeScript
+this.drupal.entityLoad('node', 1).then(
+  node => {
+    node.delete(); // Returns with Promise.
+  }
+);
 ```
