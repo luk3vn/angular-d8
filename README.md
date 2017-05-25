@@ -123,6 +123,10 @@ node.save(); // Returns with Promise.
 ####  retrieve a node
 
 ```TypeScript
+const node = this.drupal.Node(1);
+node.load(); // Returns with Promise.
+
+// Or... with entityLoad()
 this.drupal.entityLoad('node', 1).then(
   node => {
     ...
