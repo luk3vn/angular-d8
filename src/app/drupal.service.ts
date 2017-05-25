@@ -831,7 +831,7 @@ export class DrupalService {
           request.subscribe(
             view => {
               this.results = view;
-              resolve(view);
+              resolve(this);
             },
             error => {
               reject(error);
