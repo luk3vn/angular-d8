@@ -6,8 +6,9 @@ An Angular 4 project for Drupal 8 RESTful Web Services.
 > This plugin is under development!!!
 
 ## Features
-- Connect
-- User - Login / Logout / Load
+- Connect / Login / Logout / Register
+- User (entity) - Create / Retrieve / Update / Delete
+- Node (entity) - Create / Retrieve / Update / Delete
 
 ## Installing
 
@@ -65,15 +66,15 @@ export class AuthenticationService {
   }
 
   login(username: string, password: string) {
-    return new Promise(resolve => {
-      this.drupal.userLogin(username, password).subscribe(
-        data => {
-          resolve({status: true, message: ''});
-        },
-        error => {
-          resolve({status: false, message: error});
-      });
-    });
+    this.drupal.userLogin(username, password).then(
+      account => {
+        ...
+      }
+    ).catch(
+      error => {
+        ...
+      }
+    );
   }
 
 }
@@ -98,12 +99,21 @@ export class HomeComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.drupal.entityLoad('node', 1).subscribe(
-      entity => {
-        this.title = entity.label();
+    this.drupal.entityLoad('node', 1).then(
+      node => {
+        this.title = node.label();
       }
     );
   }
 
 }
+```
+
+#### How to create new node?
+
+```TypeScript
+const node = this.drupal.Node();
+node.setTitle('Test node');
+node.setType('page');
+node.save(); // Returns with Promise.
 ```

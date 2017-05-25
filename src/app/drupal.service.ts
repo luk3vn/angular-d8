@@ -171,7 +171,7 @@ export class DrupalService {
       return this.http.get(this.restPath() + 'rest/session/token');
     }
 
-    return this.http.get(this.restPath() + 'rest/session/token')
+    const request = this.http.get(this.restPath() + 'rest/session/token')
       .map((response: Response) => {
         if (response.status === 200) {
           if (typeof response['_body'] !== 'undefined') {
@@ -181,16 +181,29 @@ export class DrupalService {
         }
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+
+    return new Promise<any>((resolve, reject) => {
+      request.subscribe(
+        result => {
+          resolve(result);
+        },
+        error => {
+          reject(error);
+        }
+      );
+    });
   }
 
   /**
    * Connects to Drupal and sets the currentUser object.
-   * @returns {Promise}
+   * @returns {any}
    */
   connect() {
     const headers = new Headers({
+      'Content-Type': 'application/json',
       'Authorization': 'Basic ' + this.authData
     });
+
     const options = new RequestOptions({
       headers: headers,
       withCredentials: true
@@ -208,20 +221,19 @@ export class DrupalService {
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
 
-    return new Promise(resolve => {
+    return new Promise<any>(resolve => {
       request.subscribe(
         data => {
           if (typeof data['uid'] !== 'undefined' && data['uid'] > 0) {
-            this.userLoad(data['uid']).subscribe(
+            this.userLoad(data['uid']).then(
               account => {
                 this.setCurrentUser(account);
                 resolve(this.getCurrentUser());
-              },
-              error => {
-                this.setCurrentUser(this.getDefaultUser());
-                resolve(this.getCurrentUser());
               }
-            );
+            ).catch(error => {
+              this.setCurrentUser(this.getDefaultUser());
+              resolve(this.getCurrentUser());
+            });
           } else {
             this.setCurrentUser(this.getDefaultUser());
             resolve(this.getCurrentUser());
@@ -243,11 +255,14 @@ export class DrupalService {
    */
   userLogin(name: string, pass: string) {
     const headers = new Headers({
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/json'
     });
-    const options = new RequestOptions({headers: headers});
 
-    return this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass}, options)
+    const options = new RequestOptions({
+      headers: headers
+    });
+
+    const request = this.http.post(this.restPath() + 'user/login?_format=json', {name: name, pass: pass}, options)
       .map((response: Response) => {
         let result = {};
 
@@ -275,6 +290,17 @@ export class DrupalService {
         return result;
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+
+    return new Promise<any>((resolve, reject) => {
+      request.subscribe(
+        result => {
+          resolve(result);
+        },
+        error => {
+          reject(error);
+        }
+      );
+    });
   }
 
   /**
@@ -284,14 +310,16 @@ export class DrupalService {
    */
   userLogout() {
     const headers = new Headers({
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/json'
     });
+
     const options = new RequestOptions({
       headers: headers
     });
 
-    return this.http.get(this.restPath() + 'user/logout', options)
+    const request = this.http.get(this.restPath() + 'user/logout', options)
       .map((response: Response) => {
+        return true;
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'))
       .finally(() => {
@@ -299,6 +327,17 @@ export class DrupalService {
         localStorage.removeItem('logoutToken');
         localStorage.removeItem('authData');
       });
+
+    return new Promise<any>((resolve, reject) => {
+      request.subscribe(
+        result => {
+          resolve(result);
+        },
+        error => {
+          reject(error);
+        }
+      );
+    });
   }
 
   /**
@@ -310,25 +349,40 @@ export class DrupalService {
    */
   userRegister(name: string, pass: string, mail: string) {
     const headers = new Headers({
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/json'
     });
-    const options = new RequestOptions({headers: headers});
 
-    return this.http.post(this.restPath() + 'user/register?_format=json', {name: name, pass: pass, mail: mail}, options)
+    const options = new RequestOptions({
+      headers: headers
+    });
+
+    const request = this.http.post(this.restPath() + 'user/register?_format=json', {
+      name: name,
+      pass: pass,
+      mail: mail
+    }, options)
       .map((response: Response) => {
         let result = {};
-
         if (response.status === 200) {
           if (typeof response['_body'] !== 'undefined') {
             result = JSON.parse(response['_body']);
           }
-
           this.connect();
         }
-
         return result;
       })
       .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+
+    return new Promise<any>((resolve, reject) => {
+      request.subscribe(
+        result => {
+          resolve(result);
+        },
+        error => {
+          reject(error);
+        }
+      );
+    });
   }
 
   getCurrentUser() {
@@ -340,7 +394,7 @@ export class DrupalService {
   }
 
   getDefaultUser() {
-    return this.getUserEntity({
+    return this.User({
       uid: [{value: 0}],
       name: [{value: 'Anonymous'}],
       mail: [{value: ''}],
@@ -360,18 +414,27 @@ export class DrupalService {
    * Given an entity type and id, this will attempt to load the entity.
    * @param entityType
    * @param entityID
+   * @return {Promise<any>}
    */
   entityLoad(entityType: string, entityID: any) {
-    switch (entityType) {
+    switch (this.lcfirst(entityType)) {
       case 'user':
-        return this.getUserEntity(entityID).load();
+        return this.User(entityID).load();
 
       case 'node':
-        return this.getNodeEntity(entityID).load();
+        return this.Node(entityID).load();
     }
   }
 
-  getEntity(entityType: string, bundle: string, entityID: any) {
+  /**
+   * Returns a new base entity.
+   * @param entityType
+   * @param bundle
+   * @param entityID
+   * @return {*}
+   * @constructor
+   */
+  Entity(entityType: string, bundle: string, entityID: any = null) {
     const that = this;
 
     return {
@@ -436,30 +499,49 @@ export class DrupalService {
         return JSON.stringify(this.entity);
       },
 
+      /**
+       *
+       * @return {Promise<any>}
+       */
       load: function () {
         const headers = new Headers({
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
           'Authorization': 'Basic ' + that.authData
         });
-        const options = new RequestOptions({headers: headers});
 
-        return that.http.get(that.restPath() + this.entityType + '/' + this.id() + '?_format=json', options)
+        const options = new RequestOptions({
+          headers: headers
+        });
+
+        const request = that.http.get(that.restPath() + this.entityType + '/' + this.id() + '?_format=json', options)
           .map((response: Response) => {
             if (response.status === 200) {
               let _entity = {};
-
               if (typeof response['_body'] !== 'undefined') {
                 _entity = JSON.parse(response['_body']);
               }
-
               this.entity = _entity;
             }
-
             return this;
           })
           .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+
+        return new Promise<any>((resolve, reject) => {
+          request.subscribe(
+            entity => {
+              resolve(entity);
+            },
+            error => {
+              reject(error);
+            }
+          );
+        });
       },
 
+      /**
+       *
+       * @return {Promise<any>}
+       */
       save: function () {
         let request: any;
         let path: string;
@@ -477,6 +559,7 @@ export class DrupalService {
           'Content-Type': 'application/json',
           'Authorization': 'Basic ' + that.authData
         });
+
         const options = new RequestOptions({
           headers: headers,
           method: method,
@@ -489,17 +572,33 @@ export class DrupalService {
           request = that.http.patch(path, this.stringify(), options);
         }
 
-        return request.map((response: Response) => {
+        request.map((response: Response) => {
           if (
             (method === 'POST' && response.status === 201) ||
             (method === 'PATCH' && response.status === 204) ||
             response.status === 200
           ) {
-            return response;
+            this.entity = JSON.parse(response['_body']);
+            return this;
           }
         }).catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+
+        return new Promise<any>((resolve, reject) => {
+          request.subscribe(
+            entity => {
+              resolve(entity);
+            },
+            error => {
+              reject(error);
+            }
+          );
+        });
       },
 
+      /**
+       *
+       * @return {Promise<any>}
+       */
       delete: function () {
         const data = {};
 
@@ -511,18 +610,30 @@ export class DrupalService {
           'Content-Type': 'application/json',
           'Authorization': 'Basic ' + that.authData
         });
+
         const options = new RequestOptions({
           headers: headers,
           body: data
         });
 
-        return that.http.delete(that.restPath() + this.entityType + '/' + this.id(), options)
+        const request = that.http.delete(that.restPath() + this.entityType + '/' + this.id(), options)
           .map((response: Response) => {
             if (response.status === 204) {
               return true;
             }
           })
           .catch((error: any) => Observable.throw(error.json().message || 'Network Error'));
+
+        return new Promise<any>((resolve, reject) => {
+          request.subscribe(
+            status => {
+              resolve(status);
+            },
+            error => {
+              reject(error);
+            }
+          );
+        });
       }
     };
   }
@@ -530,10 +641,11 @@ export class DrupalService {
   /**
    * Given a user id or JSON object, this Creates a new User object.
    * @param uid_or_account
-   * @returns {object}
+   * @return {*}
+   * @constructor
    */
-  getUserEntity(uid_or_account: any) {
-    const ent = this.getEntity('user', 'user', uid_or_account);
+  User(uid_or_account: any = null) {
+    const ent = this.Entity('user', 'user', uid_or_account);
 
     const obj = {
       entityKeys: {
@@ -583,10 +695,11 @@ export class DrupalService {
   /**
    * Given a node id or JSON object, this Creates a new Node object.
    * @param nid_or_node
-   * @returns {object}
+   * @return {*}
+   * @constructor
    */
-  getNodeEntity(nid_or_node: any) {
-    const ent = this.getEntity('node', 'type', nid_or_node);
+  Node(nid_or_node: any = null) {
+    const ent = this.Entity('node', 'type', nid_or_node);
 
     const obj = {
       entityKeys: {
@@ -602,7 +715,7 @@ export class DrupalService {
 
       setTitle: function (title: string) {
         try {
-          this.entity.title[0].value = title;
+          this.entity['title'][0]['value'] = title;
         } catch (e) {
           console.log('Node.setTitle - ' + e);
         }
@@ -610,6 +723,15 @@ export class DrupalService {
 
       getType: function () {
         return this.getBundle();
+      },
+
+      setType: function (target_id: string, target_type: string = null) {
+        try {
+          this.entity['type'][0]['target_id'] = target_id;
+          this.entity['type'][0]['target_type'] = target_type || 'node_type';
+        } catch (e) {
+          console.log('Node.setType - ' + e);
+        }
       },
 
       getCreatedTime: function () {
@@ -631,7 +753,9 @@ export class DrupalService {
 
     const entity = Object.assign({}, ent, obj);
 
-    if (typeof nid_or_node === 'object') {
+    if (!nid_or_node) {
+
+    } else if (typeof nid_or_node === 'object') {
       entity['entity'] = nid_or_node;
     } else {
       const id = entity['getEntityKey']('id');
@@ -642,6 +766,10 @@ export class DrupalService {
     if (entity.entity) {
       if (!entity.entity.hasOwnProperty('title')) {
         entity.entity['title'] = [{value: ''}];
+      }
+
+      if (!entity.entity.hasOwnProperty('type')) {
+        entity.entity['type'] = [{target_id: '', target_type: 'node_type'}];
       }
     }
 
